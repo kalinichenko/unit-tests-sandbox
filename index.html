@@ -1,0 +1,100 @@
+<body></body>
+<script>
+  class PubSub {
+    constructor() {
+      this.events = {};
+    }
+
+    subscribe(event, callback) {
+      if (this.events.hasOwnProperty(event)) {
+        this.events[event].push(callback)
+      } else {
+        this.events[event] = [callback];
+      }
+    }
+
+    publish(event, args) {
+      this.events.hasOwnProperty(event) && this.events[event].forEach(callback => callback(args))
+    }
+  }
+
+  class Store {
+    constructor(props) {
+      this.events = new PubSub();
+      this.mutations = props.mutations;
+      this.state = new Proxy((props.state || {}), {
+        set: function(state, key, value) {
+          state[key] = value;
+          events.publish('change', this.state);
+          return true;
+        },
+      });
+    }
+
+    mutate(key, payload) {
+      const nextState = this.mutations[key](this.state, payload);
+      this.state = Object.assign(this.state, nextState);
+    }
+  }
+
+  class Component {
+    constructor(props) {
+      this.props = props;
+      this.render = this.render || function() {};
+      if (this.props.store) {
+        this.props.store.events.subscribe('change', () => this.render(props));
+      }
+      this.render(props);
+    }
+  }
+
+  function addItem(state, payload) {
+    state.items.push(payload);
+    return state;
+  }
+
+  const store = new Store({
+    mutations: {
+      addItem,
+    },
+    state: {
+      items: [{title: 'foo'}, {title: 'bar'}],
+    }
+  });
+
+  const html = (s) => {
+    var div = document.createElement('div');
+    div.innerHTML = `${s}`;
+    return div.firstChild;
+  }
+
+  class Button extends Component {
+    render({ onclick }) {
+      return `<button onclick="${store.commit('addItem', '1')}">OK</button>`;
+    }
+  }
+
+  class ListItem extends Component {
+    render({item, el}) {
+      const tag = html(`<li>
+        <span>${item.title}</span>
+        </li>`);
+      el.appendChild(tag);
+    }
+  }
+
+  class List extends Component {
+    render({store, el}) {
+      const {items} = store.state;
+      const tmpl = html(`<ul></ul>`);
+      items.map(item => new ListItem({item, el: tmpl}));
+      el.appendChild(tmpl);
+    }
+  }
+
+
+  new List({store, el: document.body});
+
+
+</script>
+
