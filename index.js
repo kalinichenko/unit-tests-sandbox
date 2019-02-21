@@ -37,6 +37,6 @@
 // }
 // /** list helper functions. end */
 
-require('./src/increasingTriplet');
+require('./src/removeKDigits');
 
 
